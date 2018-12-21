@@ -1,0 +1,126 @@
+$date
+	Fri Dec 21 14:43:02 2018
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1s
+$end
+$scope module testbench $end
+$scope module regF $end
+$var wire 1 ! CLK $end
+$var wire 1 " CTRL $end
+$var wire 8 # IN [7:0] $end
+$var wire 3 $ INaddr [2:0] $end
+$var wire 3 % OUT1addr [2:0] $end
+$var wire 3 & OUT2addr [2:0] $end
+$var wire 1 ' RESET $end
+$var reg 8 ( OUT1 [7:0] $end
+$var reg 8 ) OUT2 [7:0] $end
+$var reg 8 * register0 [7:0] $end
+$var reg 8 + register1 [7:0] $end
+$var reg 8 , register2 [7:0] $end
+$var reg 8 - register3 [7:0] $end
+$var reg 8 . register4 [7:0] $end
+$var reg 8 / register5 [7:0] $end
+$var reg 8 0 register6 [7:0] $end
+$var reg 8 1 register7 [7:0] $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+#40
+$dumpvars
+bx 1
+bx 0
+bx /
+b1100100 .
+bx -
+b11001000 ,
+bx +
+bx *
+bx )
+bx (
+0'
+bx &
+bx %
+b100 $
+b1100100 #
+0"
+0!
+$end
+#45
+b0 )
+b0 (
+1"
+1!
+#50
+0!
+#55
+b11001000 (
+b10 %
+1!
+#60
+0!
+#65
+b1100100 )
+b100 &
+1!
+#70
+b0 1
+b0 0
+b0 /
+b0 .
+b0 -
+b0 ,
+b0 +
+b0 *
+1'
+0!
+#75
+b0 )
+b0 (
+1!
+#80
+0!
+#85
+1!
+#90
+0!
+#95
+1!
+#100
+0'
+0!
+#105
+0"
+1!
+#110
+b1100100 .
+0!
+#115
+1!
+#120
+b10 $
+0!
+#125
+1!
+#130
+b100001 ,
+b100001 #
+0!
+#135
+b1100100 )
+b100001 (
+1"
+1!
+#140
+0!
+#145
+1!
+#150
+0!
+#155
+1!
+#160
+0!

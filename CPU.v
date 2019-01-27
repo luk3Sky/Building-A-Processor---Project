@@ -213,6 +213,7 @@ module Instruction_reg ( clk, Read_Addr, instruction );
 	begin
 	instruction = Read_Addr;
 	end
+
 endmodule
 
 //Control Unit
@@ -536,21 +537,7 @@ module Processor( Read_Addr, DataMemMUXout , clk, reset );
 endmodule
 
 // Instruction Memory Module
-module Instruction_memory(clk, ADDRESS,READ, READ_INST, WAIT);
-	input clk;
-	input READ;
-	input[7:0] ADDRESS;
-	output[31:0] READ_INST;
-	output WAIT;
-
-	reg WAIT = 1'b0;
-	reg[31:0] READ_INST;
-
-endmodule // Instruction_memory
-
-//Data Memory
 module Inst_mem(clk, ADDRESS, READ, READ_INST, WAIT);
-	// ### New vars
 	input clk;
 	input READ;
 	input[7:0] ADDRESS;
@@ -566,18 +553,6 @@ module Inst_mem(clk, ADDRESS, READ, READ_INST, WAIT);
 	reg[31:0] instr_mem_array [255:0];
 
 	always @( READ, ADDRESS) begin
-		// if ( write && !read )			//Write to Data memory
-		// begin
-		// 	WAIT <= 1;
-		// 	//Artificial delay 98 cycles
-		// 	repeat(98)
-		// 	begin
-		// 		@(posedge clk);
-		// 	end
-        //     $display("writing to memory [Data Memory Module]");
-		// 	memory_array[address] = write_data;
-		// 	WAIT <= 0;
-		// end
 		if ( READ ) begin		//Read from Data memory
 			WAIT <= 1;
 			//Artificial delay 98 cycles
@@ -589,6 +564,213 @@ module Inst_mem(clk, ADDRESS, READ, READ_INST, WAIT);
 			READ_INST = instr_mem_array[ADDRESS];
 			WAIT <= 0;
 		end
+	end
+
+endmodule
+
+// ROW CODE
+module Instruction_mem( clk, read ,Read_Addr, instruction, IMbusy_wait,reset);
+       input clk,reset,read;
+       input [5:0] Read_Addr;
+       output reg [127:0] instruction;
+       output reg IMbusy_wait;
+       //reg instruction;
+
+       // Declare memory 64x128 bits
+	   reg [127:0] memory_array [63:0];
+
+	   always @(reset)
+	      begin
+	      memory_array[0] = 128'b00000101001110000000000000000011000001010011100100000000000000100000000000000011000000000000001100000000000000100000000000011101;
+          memory_array[1] = 128'b00000101000110000000000000000011000000000000001100000000010000110000010000001000000000000011100000000100000001110000000000111001;
+          memory_array[2] = 128'b00000100000010000000000000111000000010010000010100001000000001110000000100000101000001110000100000000100000010000000000000011000;
+          memory_array[3] = 128'b00000101000110010000000000000010000001000000100000000000000110000000010100111001000000000000001100000100000010000000000000111001;
+          memory_array[4] = 128'b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000001010000011100000010;
+          memory_array[5] = 128'b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000001010000011100000010;
+          end
+
+       always @(read,Read_Addr)
+       begin
+          IMbusy_wait <= 1;
+          repeat(98)
+		  begin
+			@(negedge clk);
+		  end
+          instruction = memory_array[Read_Addr];
+          IMbusy_wait <= 0;
+       end
+endmodule
+
+// --------- Instruction Memory Cache ----------
+
+module cache_mem1( clk, rst, read, address, read_data, busy_wait ,
+					IMread, IMaddress, IMread_data, IMbusy_wait );
+	input clk;
+    input rst;
+
+    input read;					//Cache links with Control unit
+    input [7:0] address;
+    output [31:0] read_data;
+    output busy_wait;
+
+	output IMread;				//Cache links with Data Memory
+    output [5:0] IMaddress;
+    input [127:0] IMread_data;
+	input IMbusy_wait;
+
+	reg [5:0] IMaddress;
+	reg IMread;
+	reg [31:0] read_data;
+	wire busy_wait;
+
+
+	assign busy_wait = IMbusy_wait;
+
+	integer  i;
+	reg [31:0] cache_ram [15:0];
+
+	wire cout;
+	wire hit;
+	reg valid [3:0];
+	reg [3:0] cacheTAG [3:0];
+	wire [3:0] tag;
+	wire [1:0] index;
+	wire [1:0] offset;
+	reg flag = 1'b0;
+
+
+	assign offset = address[1:0];
+	assign index = address[3:2];
+	assign tag = address[7:4];
+
+	always @(posedge rst)begin				//Cache Reset
+		if(rst)begin
+			for (i=0; i<4; i=i+1)begin
+				valid [i] <= 0;
+			end
+			for (i=0; i<16; i=i+1) begin
+				cache_ram[i] <= 0;
+			end
+		end
+	end
+
+	//Look for HIT
+	Comparator cm1( cout, tag, cacheTAG[index] );
+	and and1( hit, cout, valid[index] );
+
+	always @(negedge clk ) begin
+
+		//Read from Instruction memory
+
+			if( hit && !IMbusy_wait ) begin
+				if( flag ) begin
+					cache_ram[ 4*index ] = IMread_data[31:0];
+					cache_ram[ 4*index+1 ] = IMread_data[63:32];
+					cache_ram[ 4*index+2 ] = IMread_data[95:64];
+					cache_ram[ 4*index+3 ] = IMread_data[127:96];
+					flag = 1'b0;
+				end
+
+				read_data = cache_ram[ 4*index+offset ];
+			end
+
+			if( !hit ) begin		//If not a hit
+				begin
+					@(negedge clk)begin
+							IMaddress = address[7:2];
+							IMread = 1'b1;
+							cacheTAG[ index ] = address[7:4];
+							valid[index] = 1'b1;
+							flag = 1'b1;
+					end
+				end
+			end
+	end
+
+endmodule
+
+// Instruction Cache Memory Module
+module Instru_cache_mem( clk, RESET, READ, ADDRESS, read_data, WAIT ,
+					IMread, IM_ADDRESS, IM_READ, IM_WAIT );
+	input clk;
+    input RESET;
+
+    input READ;					//Cache links with Control unit
+    input [7:0] ADDRESS;
+    output [31:0] read_data;
+    output WAIT;
+
+	output IMread;				//Cache links with Data Memory
+    output [5:0] IM_ADDRESS;
+    input [127:0] IM_READ;
+	input IM_WAIT;
+
+	reg [5:0] IM_ADDRESS;
+	reg IMread;
+	reg [31:0] read_data;
+	wire WAIT;
+
+	assign WAIT = IM_WAIT;
+
+	integer  i;
+	reg [31:0] cache_ram [15:0];
+
+	wire cout;
+	wire hit;
+	reg valid [3:0];
+	reg [3:0] cacheTAG [3:0];
+	wire [3:0] tag;
+	wire [1:0] index;
+	wire [1:0] offset;
+	reg flag = 1'b0;
+
+
+	assign offset = ADDRESS[1:0];
+	assign index = ADDRESS[3:2];
+	assign tag = ADDRESS[7:4];
+
+	always @(posedge RESET)begin				//Cache Reset
+		if(RESET)begin
+			for (i=0; i<4; i=i+1)begin
+				valid [i] <= 0;
+			end
+			for (i=0; i<16; i=i+1) begin
+				cache_ram[i] <= 0;
+			end
+		end
+	end
+
+	//Look for HIT
+	Comparator cm1( cout, tag, cacheTAG[index] );
+	and and1( hit, cout, valid[index] );
+
+	always @(negedge clk ) begin
+
+		//Read from Instruction memory
+
+			if( hit && !IM_WAIT ) begin
+				if( flag ) begin
+					cache_ram[ 4*index ] = IM_READ[31:0];
+					cache_ram[ 4*index+1 ] = IM_READ[63:32];
+					cache_ram[ 4*index+2 ] = IM_READ[95:64];
+					cache_ram[ 4*index+3 ] = IM_READ[127:96];
+					flag = 1'b0;
+				end
+
+				read_data = cache_ram[ 4*index+offset ];
+			end
+
+			if( !hit ) begin		//If not a hit
+				begin
+					@(negedge clk)begin
+							IM_ADDRESS = ADDRESS[7:2];
+							IMread = 1'b1;
+							cacheTAG[ index ] = ADDRESS[7:4];
+							valid[index] = 1'b1;
+							flag = 1'b1;
+					end
+				end
+			end
 	end
 
 endmodule

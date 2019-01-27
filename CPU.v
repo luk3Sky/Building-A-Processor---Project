@@ -232,11 +232,11 @@ module CU(instruction, WAIT, OUT1addr, OUT2addr, INaddr, Imm, Select, add_mux, i
 
 	always @(instruction) begin
 		if ( !WAIT ) begin						//Stall if DM access is happening
-			assign Select = instruction[26:24];		//Common Signals
-			assign Imm = instruction[7:0];
-			assign OUT1addr = instruction[2:0];
-			assign OUT2addr = instruction[10:8];
-			assign INaddr = instruction[18:16];
+			Select = instruction[26:24];		//Common Signals
+			Imm = instruction[7:0];
+			OUT1addr = instruction[2:0];
+			OUT2addr = instruction[10:8];
+			INaddr = instruction[18:16];
 			assign im_mux = 1'b1;
 			assign add_mux = 1'b0;
 			assign write = 1'b0;
@@ -256,12 +256,12 @@ module CU(instruction, WAIT, OUT1addr, OUT2addr, INaddr, Imm, Select, add_mux, i
 			8'b00000100 : begin			//load
 				assign read = 1'b1;
 				assign dm_mux = 1'b0;
-				assign address = instruction[7:0];
+				address = instruction[7:0];
 			end
 
 			8'b00000101: begin			//store
 				assign write = 1'b1;
-				assign address = instruction[23:16];
+				address = instruction[23:16];
 			end
 
 			endcase
@@ -548,6 +548,50 @@ module Instruction_memory(clk, ADDRESS,READ, READ_INST, WAIT);
 
 endmodule // Instruction_memory
 
+//Data Memory
+module Inst_mem(clk, ADDRESS, READ, READ_INST, WAIT);
+	// ### New vars
+	input clk;
+	input READ;
+	input[7:0] ADDRESS;
+	output[31:0] READ_INST;
+	output WAIT;
+
+	reg WAIT = 1'b0;
+	reg[31:0] READ_INST;
+
+	integer  i;
+
+	// ### Declare Memory 256x32 bits
+	reg[31:0] instr_mem_array [255:0];
+
+	always @( READ, ADDRESS) begin
+		// if ( write && !read )			//Write to Data memory
+		// begin
+		// 	WAIT <= 1;
+		// 	//Artificial delay 98 cycles
+		// 	repeat(98)
+		// 	begin
+		// 		@(posedge clk);
+		// 	end
+        //     $display("writing to memory [Data Memory Module]");
+		// 	memory_array[address] = write_data;
+		// 	WAIT <= 0;
+		// end
+		if ( READ ) begin		//Read from Data memory
+			WAIT <= 1;
+			//Artificial delay 98 cycles
+			repeat(98)
+			begin
+				@(posedge clk);
+			end
+            $display("reading from instruction memory [Instruction Memory Module]");
+			READ_INST = instr_mem_array[ADDRESS];
+			WAIT <= 0;
+		end
+	end
+
+endmodule
 
 // Testbench
 module testbench;

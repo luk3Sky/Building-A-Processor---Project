@@ -510,7 +510,7 @@ module Processor( Read_Addr, DataMemMUXout , clk, reset );
 
 	wire [7:0] hit;
 	wire [7:0] Result;
-	wire [31:0] instruction;
+	wire [31:0] instruction, read_instr;
 	wire [2:0] OUT1addr,OUT2addr,INaddr,Select;
 	wire  [7:0] Imm,OUT1,OUT2,OUTPUT,INPUT,cmp;
 	wire [7:0] read_data,address;
@@ -518,8 +518,9 @@ module Processor( Read_Addr, DataMemMUXout , clk, reset );
 	wire addSubMUX, imValueMUX, dmMUX;
 	wire read, write, WAIT, reset;
 	wire [6:0] dm_addr;
+	wire [7:0] im_ADDRESS;
 	wire [15:0] dm_writeData, dm_readData;
-	wire dm_read, dm_write, dm_WAIT;
+	wire dm_read, dm_write, dm_WAIT, im_WAIT, im_Read;
 
 	Instruction_reg ir(clk, Read_Addr, instruction);				                            // Instruction Regiter
 	CU cu( instruction, WAIT, OUT1addr, OUT2addr, INaddr, Imm, Select,
@@ -533,18 +534,21 @@ module Processor( Read_Addr, DataMemMUXout , clk, reset );
 	Cache_memory cache( clk, reset, read, write, address, Result, read_data, WAIT ,
 					dm_read, dm_write, dm_addr, dm_writeData, dm_readData, dm_WAIT );		      // Cache Memory Module
 	data_mem dataMem( clk, reset, dm_read, dm_write, dm_addr, dm_writeData, dm_readData, dm_WAIT);// Data Memory Module
+	Inst_mem im(clk, im_ADDRESS, im_Read, read_instr, im_WAIT);										// Instruction Memory Module
+	Instru_cache_mem imc( clk, rst, Read_Addr, read, read_inst, busy_wait ,IMread, IMaddress, 
+	IMread_data, IMbusy_wait );																		// Instruction Cache Memory Module
 
 endmodule
 
 // Instruction Memory Module
-module Inst_mem(clk, ADDRESS, READ, READ_INST, WAIT);
+module Inst_mem(clk, ADDRESS, READ, READ_INST, im_WAIT);
 	input clk;
 	input READ;
 	input[7:0] ADDRESS;
 	output[31:0] READ_INST;
-	output WAIT;
+	output im_WAIT;
 
-	reg WAIT = 1'b0;
+	reg im_WAIT = 1'b0;
 	reg[31:0] READ_INST;
 
 	integer  i;
@@ -554,7 +558,7 @@ module Inst_mem(clk, ADDRESS, READ, READ_INST, WAIT);
 
 	always @( READ, ADDRESS) begin
 		if ( READ ) begin		//Read from Data memory
-			WAIT <= 1;
+			im_WAIT <= 1;
 			//Artificial delay 98 cycles
 			repeat(98)
 			begin
@@ -562,43 +566,10 @@ module Inst_mem(clk, ADDRESS, READ, READ_INST, WAIT);
 			end
             $display("reading from instruction memory [Instruction Memory Module]");
 			READ_INST = instr_mem_array[ADDRESS];
-			WAIT <= 0;
+			im_WAIT <= 0;
 		end
 	end
 
-endmodule
-
-// ROW CODE
-module Instruction_mem( clk, read ,Read_Addr, instruction, IMbusy_wait,reset);
-       input clk,reset,read;
-       input [5:0] Read_Addr;
-       output reg [127:0] instruction;
-       output reg IMbusy_wait;
-       //reg instruction;
-
-       // Declare memory 64x128 bits
-	   reg [127:0] memory_array [63:0];
-
-	   always @(reset)
-	      begin
-	      memory_array[0] = 128'b00000101001110000000000000000011000001010011100100000000000000100000000000000011000000000000001100000000000000100000000000011101;
-          memory_array[1] = 128'b00000101000110000000000000000011000000000000001100000000010000110000010000001000000000000011100000000100000001110000000000111001;
-          memory_array[2] = 128'b00000100000010000000000000111000000010010000010100001000000001110000000100000101000001110000100000000100000010000000000000011000;
-          memory_array[3] = 128'b00000101000110010000000000000010000001000000100000000000000110000000010100111001000000000000001100000100000010000000000000111001;
-          memory_array[4] = 128'b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000001010000011100000010;
-          memory_array[5] = 128'b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000001010000011100000010;
-          end
-
-       always @(read,Read_Addr)
-       begin
-          IMbusy_wait <= 1;
-          repeat(98)
-		  begin
-			@(negedge clk);
-		  end
-          instruction = memory_array[Read_Addr];
-          IMbusy_wait <= 0;
-       end
 endmodule
 
 // --------- Instruction Memory Cache ----------

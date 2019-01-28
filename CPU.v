@@ -159,7 +159,7 @@ module counter(clk, reset, Read_addr, WAIT);
 	input clk;
 	input reset;
 	input WAIT;
-	output [31:0] Read_addr;
+	output [7:0] Read_addr;
 	reg Read_addr;
 
 	always @(negedge clk)
@@ -167,10 +167,10 @@ module counter(clk, reset, Read_addr, WAIT);
 		if ( !WAIT ) begin
 			case(reset)
 				1'b1 : begin
-                    Read_addr = 32'd0;
+                    Read_addr =7'd0;
                     end	//reset
 				1'b0 : begin
-                    Read_addr = Read_addr + 32'd1;
+                    Read_addr = Read_addr + 7'd1;
                     end	//otherwise
 			endcase
 		end
@@ -518,11 +518,12 @@ module Processor( Read_Addr, DataMemMUXout , clk, reset );
 	wire addSubMUX, imValueMUX, dmMUX;
 	wire read, write, WAIT, reset;
 	wire [6:0] dm_addr;
+	wire [7:0] counter_Addrs;
 	wire [7:0] im_ADDRESS;
 	wire [15:0] dm_writeData, dm_readData;
 	wire dm_read, dm_write, dm_WAIT, im_WAIT, im_Read;
 
-	Instruction_reg ir(clk, Read_Addr, instruction);				                            // Instruction Regiter
+	Instruction_reg ir(clk, read_instr, instruction);				                            // Instruction Regiter
 	CU cu( instruction, WAIT, OUT1addr, OUT2addr, INaddr, Imm, Select,
          addSubMUX, imValueMUX, dmMUX, read, write, address );                                  // Control Unit
 	regfile8x8a rf( clk, INaddr, DataMemMUXout, OUT1addr, OUT1, OUT2addr, OUT2, WAIT );			// Register File
@@ -534,7 +535,8 @@ module Processor( Read_Addr, DataMemMUXout , clk, reset );
 	Cache_memory cache( clk, reset, read, write, address, Result, read_data, WAIT ,
 					dm_read, dm_write, dm_addr, dm_writeData, dm_readData, dm_WAIT );		      // Cache Memory Module
 	data_mem dataMem( clk, reset, dm_read, dm_write, dm_addr, dm_writeData, dm_readData, dm_WAIT);// Data Memory Module
-	Inst_mem im(clk, address, im_Read, read_instr, im_WAIT);										// Instruction Memory Module
+	counter counter(clk, reset, counter_Addrs, WAIT);
+	Inst_mem im(clk, counter_Addrs, im_Read, read_instr, im_WAIT);										// Instruction Memory Module
 	// Instru_cache_mem imc( clk, rst, Read_Addr, read, read_inst, busy_wait ,IMread, IMaddress, 
 	// IMread_data, IMbusy_wait );																		// Instruction Cache Memory Module
 
@@ -783,8 +785,8 @@ module testbench;
 		reset = 0;
 		#20
 
-		Read_Addr = 32'b00000000_00000100_xxxxxxxx_00000111;      //loadi r4,X,7
-		// Read_Addr = 8'd0;
+		// Read_Addr = 32'b00000000_00000100_xxxxxxxx_00000111;      //loadi r4,X,7
+		Read_Addr = 8'd0;
 		$display("loadi reg4,X,7");
 		#20
 		$display("1 clk cycle elapsed:\nOUTPUT: %d\n",Result);

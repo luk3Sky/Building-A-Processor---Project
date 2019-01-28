@@ -159,7 +159,7 @@ module counter(clk, reset, Read_addr, WAIT);
 	input clk;
 	input reset;
 	input WAIT;
-	output [31:0] Read_addr;
+	output [7:0] Read_addr;
 	reg Read_addr;
 
 	always @(negedge clk)
@@ -167,10 +167,10 @@ module counter(clk, reset, Read_addr, WAIT);
 		if ( !WAIT ) begin
 			case(reset)
 				1'b1 : begin
-                    Read_addr = 32'd0;
+                    Read_addr = 7'd0;
                     end	//reset
 				1'b0 : begin
-                    Read_addr = Read_addr + 3'b100;
+                    Read_addr = Read_addr + 1;
                     end	//otherwise
 			endcase
 		end
@@ -211,9 +211,8 @@ module Instruction_reg ( clk, Read_Addr, instruction );
 
 	always @(negedge clk)
 	begin
-	instruction = Read_Addr;
+		instruction = Read_Addr;
 	end
-
 endmodule
 
 //Control Unit
@@ -233,11 +232,11 @@ module CU(instruction, WAIT, OUT1addr, OUT2addr, INaddr, Imm, Select, add_mux, i
 
 	always @(instruction) begin
 		if ( !WAIT ) begin						//Stall if DM access is happening
-			Select = instruction[26:24];		//Common Signals
-			Imm = instruction[7:0];
-			OUT1addr = instruction[2:0];
-			OUT2addr = instruction[10:8];
-			INaddr = instruction[18:16];
+			assign Select = instruction[26:24];		//Common Signals
+			assign Imm = instruction[7:0];
+			assign OUT1addr = instruction[2:0];
+			assign OUT2addr = instruction[10:8];
+			assign INaddr = instruction[18:16];
 			assign im_mux = 1'b1;
 			assign add_mux = 1'b0;
 			assign write = 1'b0;
@@ -257,12 +256,12 @@ module CU(instruction, WAIT, OUT1addr, OUT2addr, INaddr, Imm, Select, add_mux, i
 			8'b00000100 : begin			//load
 				assign read = 1'b1;
 				assign dm_mux = 1'b0;
-				address = instruction[7:0];
+				assign address = instruction[7:0];
 			end
 
 			8'b00000101: begin			//store
 				assign write = 1'b1;
-				address = instruction[23:16];
+				assign address = instruction[23:16];
 			end
 
 			endcase
@@ -510,7 +509,7 @@ module Processor( Read_Addr, DataMemMUXout , clk, reset );
 
 	wire [7:0] hit;
 	wire [7:0] Result;
-	wire [31:0] instruction, read_instr;
+	wire [31:0] instruction;
 	wire [2:0] OUT1addr,OUT2addr,INaddr,Select;
 	wire  [7:0] Imm,OUT1,OUT2,OUTPUT,INPUT,cmp;
 	wire [7:0] read_data,address;
@@ -518,9 +517,9 @@ module Processor( Read_Addr, DataMemMUXout , clk, reset );
 	wire addSubMUX, imValueMUX, dmMUX;
 	wire read, write, WAIT, reset;
 	wire [6:0] dm_addr;
-	wire [7:0] im_ADDRESS;
 	wire [15:0] dm_writeData, dm_readData;
-	wire dm_read, dm_write, dm_WAIT, im_WAIT, im_Read;
+	wire dm_read, dm_write, dm_WAIT;
+	// wire Read_addr;
 
 	Instruction_reg ir(clk, Read_Addr, instruction);				                            // Instruction Regiter
 	CU cu( instruction, WAIT, OUT1addr, OUT2addr, INaddr, Imm, Select,
@@ -534,217 +533,55 @@ module Processor( Read_Addr, DataMemMUXout , clk, reset );
 	Cache_memory cache( clk, reset, read, write, address, Result, read_data, WAIT ,
 					dm_read, dm_write, dm_addr, dm_writeData, dm_readData, dm_WAIT );		      // Cache Memory Module
 	data_mem dataMem( clk, reset, dm_read, dm_write, dm_addr, dm_writeData, dm_readData, dm_WAIT);// Data Memory Module
-	Inst_mem im(clk, im_ADDRESS, im_Read, read_instr, im_WAIT);										// Instruction Memory Module
-	Instru_cache_mem imc( clk, rst, Read_Addr, read, read_inst, busy_wait ,IMread, IMaddress, 
-	IMread_data, IMbusy_wait );																		// Instruction Cache Memory Module
+	// counter count(clk, reset, Read_addr, WAIT);	//program counter
+	// Instruction_memory inMem(clk, ADDRESS,READ, READ_INST, WAIT);	//Instruction Memory
 
 endmodule
 
 // Instruction Memory Module
-module Inst_mem(clk, ADDRESS, READ, READ_INST, im_WAIT);
+module Instruction_memory(clk, ADDRESS,READ, READ_INST, WAIT);
 	input clk;
 	input READ;
 	input[7:0] ADDRESS;
 	output[31:0] READ_INST;
-	output im_WAIT;
+	output WAIT;
 
-	reg im_WAIT = 1'b0;
+	reg WAIT = 1'b0;
 	reg[31:0] READ_INST;
 
-	integer  i;
+	//declare memory 256x32 bits
+	reg [31:0] inst_arr [255:0];
 
-	// ### Declare Memory 256x32 bits
-	reg[31:0] instr_mem_array [255:0];
+	//hardcoded Instructions
+	initial begin
+	inst_arr[0]=32'b00000000000001000000000000000111;	//loadi 4 X 0x07
+	inst_arr[1]=32'b00000000000001100000000000000001;	//loadi 6 X 0x01
+	inst_arr[2]=32'b00000101001000110000000000000100;	//store 0x23 X 4
+	inst_arr[3]=32'b00000101001000100000000000000110;	//store 0x22 X 6
+	inst_arr[4]=32'b00000100000000010000000000100011;	//load 1 X 0x23
+	inst_arr[5]=32'b00000100000001110000000000100010;	//load 7 X 0x22
+	inst_arr[6]=32'b00000000000000110000000000011110;	//loadi 3 X 0x1E
+	inst_arr[7]=32'b00000101001110000000000000000011;	//store 0x38 X 3
+	inst_arr[8]=32'b00000100000001110000000000111000;	//load 7 X 0x38
+	inst_arr[9]=32'b00000001000001010000000100000111;	//add 5 1 7
+	inst_arr[10]=32'b00001001000001000000011100000001;	//sub 4 7 1
+	end
 
-	always @( READ, ADDRESS) begin
-		if ( READ ) begin		//Read from Data memory
-			im_WAIT <= 1;
-			//Artificial delay 98 cycles
-			repeat(98)
-			begin
-				@(posedge clk);
-			end
-            $display("reading from instruction memory [Instruction Memory Module]");
-			READ_INST = instr_mem_array[ADDRESS];
-			im_WAIT <= 0;
+	always @(READ,ADDRESS) begin
+		if(READ) begin
+		  WAIT <= 1;
+		  //Artificial delay 98 cycles
+		  repeat(98)
+		  begin
+		  	@(posedge clk);
+		  end
+		  $display("reading from Instruction Memory [Instruction Memory Module]");
+		  READ_INST = inst_arr[ADDRESS];
+		  WAIT <= 0;
 		end
 	end
+endmodule // Instruction_memory
 
-endmodule
-
-// --------- Instruction Memory Cache ----------
-
-module cache_mem1( clk, rst, read, address, read_data, busy_wait ,
-					IMread, IMaddress, IMread_data, IMbusy_wait );
-	input clk;
-    input rst;
-
-    input read;					//Cache links with Control unit
-    input [7:0] address;
-    output [31:0] read_data;
-    output busy_wait;
-
-	output IMread;				//Cache links with Data Memory
-    output [5:0] IMaddress;
-    input [127:0] IMread_data;
-	input IMbusy_wait;
-
-	reg [5:0] IMaddress;
-	reg IMread;
-	reg [31:0] read_data;
-	wire busy_wait;
-
-
-	assign busy_wait = IMbusy_wait;
-
-	integer  i;
-	reg [31:0] cache_ram [15:0];
-
-	wire cout;
-	wire hit;
-	reg valid [3:0];
-	reg [3:0] cacheTAG [3:0];
-	wire [3:0] tag;
-	wire [1:0] index;
-	wire [1:0] offset;
-	reg flag = 1'b0;
-
-
-	assign offset = address[1:0];
-	assign index = address[3:2];
-	assign tag = address[7:4];
-
-	always @(posedge rst)begin				//Cache Reset
-		if(rst)begin
-			for (i=0; i<4; i=i+1)begin
-				valid [i] <= 0;
-			end
-			for (i=0; i<16; i=i+1) begin
-				cache_ram[i] <= 0;
-			end
-		end
-	end
-
-	//Look for HIT
-	Comparator cm1( cout, tag, cacheTAG[index] );
-	and and1( hit, cout, valid[index] );
-
-	always @(negedge clk ) begin
-
-		//Read from Instruction memory
-
-			if( hit && !IMbusy_wait ) begin
-				if( flag ) begin
-					cache_ram[ 4*index ] = IMread_data[31:0];
-					cache_ram[ 4*index+1 ] = IMread_data[63:32];
-					cache_ram[ 4*index+2 ] = IMread_data[95:64];
-					cache_ram[ 4*index+3 ] = IMread_data[127:96];
-					flag = 1'b0;
-				end
-
-				read_data = cache_ram[ 4*index+offset ];
-			end
-
-			if( !hit ) begin		//If not a hit
-				begin
-					@(negedge clk)begin
-							IMaddress = address[7:2];
-							IMread = 1'b1;
-							cacheTAG[ index ] = address[7:4];
-							valid[index] = 1'b1;
-							flag = 1'b1;
-					end
-				end
-			end
-	end
-
-endmodule
-
-// Instruction Cache Memory Module
-module Instru_cache_mem( clk, RESET, READ, ADDRESS, read_data, WAIT ,
-					IMread, IM_ADDRESS, IM_READ, IM_WAIT );
-	input clk;
-    input RESET;
-
-    input READ;					//Cache links with Control unit
-    input [7:0] ADDRESS;
-    output [31:0] read_data;
-    output WAIT;
-
-	output IMread;				//Cache links with Data Memory
-    output [5:0] IM_ADDRESS;
-    input [127:0] IM_READ;
-	input IM_WAIT;
-
-	reg [5:0] IM_ADDRESS;
-	reg IMread;
-	reg [31:0] read_data;
-	wire WAIT;
-
-	assign WAIT = IM_WAIT;
-
-	integer  i;
-	reg [31:0] cache_ram [15:0];
-
-	wire cout;
-	wire hit;
-	reg valid [3:0];
-	reg [3:0] cacheTAG [3:0];
-	wire [3:0] tag;
-	wire [1:0] index;
-	wire [1:0] offset;
-	reg flag = 1'b0;
-
-
-	assign offset = ADDRESS[1:0];
-	assign index = ADDRESS[3:2];
-	assign tag = ADDRESS[7:4];
-
-	always @(posedge RESET)begin				//Cache Reset
-		if(RESET)begin
-			for (i=0; i<4; i=i+1)begin
-				valid [i] <= 0;
-			end
-			for (i=0; i<16; i=i+1) begin
-				cache_ram[i] <= 0;
-			end
-		end
-	end
-
-	//Look for HIT
-	Comparator cm1( cout, tag, cacheTAG[index] );
-	and and1( hit, cout, valid[index] );
-
-	always @(negedge clk ) begin
-
-		//Read from Instruction memory
-
-			if( hit && !IM_WAIT ) begin
-				if( flag ) begin
-					cache_ram[ 4*index ] = IM_READ[31:0];
-					cache_ram[ 4*index+1 ] = IM_READ[63:32];
-					cache_ram[ 4*index+2 ] = IM_READ[95:64];
-					cache_ram[ 4*index+3 ] = IM_READ[127:96];
-					flag = 1'b0;
-				end
-
-				read_data = cache_ram[ 4*index+offset ];
-			end
-
-			if( !hit ) begin		//If not a hit
-				begin
-					@(negedge clk)begin
-							IM_ADDRESS = ADDRESS[7:2];
-							IMread = 1'b1;
-							cacheTAG[ index ] = ADDRESS[7:4];
-							valid[index] = 1'b1;
-							flag = 1'b1;
-					end
-				end
-			end
-	end
-
-endmodule
 
 // Testbench
 module testbench;

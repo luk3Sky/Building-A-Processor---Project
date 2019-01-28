@@ -170,7 +170,7 @@ module counter(clk, reset, Read_addr, WAIT);
                     Read_addr = 32'd0;
                     end	//reset
 				1'b0 : begin
-                    Read_addr = Read_addr + 3'b100;
+                    Read_addr = Read_addr + 32'd1;
                     end	//otherwise
 			endcase
 		end
@@ -783,8 +783,8 @@ module testbench;
 		reset = 0;
 		#20
 
-		// Read_Addr = 32'b00000000_00000100_xxxxxxxx_00000111;      //loadi r4,X,7
-		Read_Addr = 8'd0;
+		Read_Addr = 32'b00000000_00000100_xxxxxxxx_00000111;      //loadi r4,X,7
+		// Read_Addr = 8'd0;
 		$display("loadi reg4,X,7");
 		#20
 		$display("1 clk cycle elapsed:\nOUTPUT: %d\n",Result);

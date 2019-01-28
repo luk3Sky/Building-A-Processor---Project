@@ -211,7 +211,7 @@ module Instruction_reg ( clk, Read_Addr, instruction );
 
 	always @(negedge clk)
 	begin
-	instruction = Read_Addr;
+		instruction = Read_Addr;
 	end
 
 endmodule
@@ -534,7 +534,7 @@ module Processor( Read_Addr, DataMemMUXout , clk, reset );
 	Cache_memory cache( clk, reset, read, write, address, Result, read_data, WAIT ,
 					dm_read, dm_write, dm_addr, dm_writeData, dm_readData, dm_WAIT );		      // Cache Memory Module
 	data_mem dataMem( clk, reset, dm_read, dm_write, dm_addr, dm_writeData, dm_readData, dm_WAIT);// Data Memory Module
-	Inst_mem im(clk, im_ADDRESS, im_Read, read_instr, im_WAIT);										// Instruction Memory Module
+	Inst_mem im(clk, address, im_Read, read_instr, im_WAIT);										// Instruction Memory Module
 	// Instru_cache_mem imc( clk, rst, Read_Addr, read, read_inst, busy_wait ,IMread, IMaddress, 
 	// IMread_data, IMbusy_wait );																		// Instruction Cache Memory Module
 
@@ -783,7 +783,8 @@ module testbench;
 		reset = 0;
 		#20
 
-		Read_Addr = 32'b00000000_00000100_xxxxxxxx_00000111;      //loadi r4,X,7
+		// Read_Addr = 32'b00000000_00000100_xxxxxxxx_00000111;      //loadi r4,X,7
+		Read_Addr = 8'd0;
 		$display("loadi reg4,X,7");
 		#20
 		$display("1 clk cycle elapsed:\nOUTPUT: %d\n",Result);
